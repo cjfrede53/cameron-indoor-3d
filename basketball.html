@@ -63,7 +63,7 @@
 
     const gui = new GUI({ title: "Settings" });
 
-    const scene_json = await fetch(`${URL_BASE}/handDrawn.json`).then((response) => response.json());
+    const scene_json = await fetch(`${URL_BASE}/basketball.json`).then((response) => response.json());
     const splats = scene_json.splats ?? [];
     const meshes = scene_json.meshes ?? [];
 

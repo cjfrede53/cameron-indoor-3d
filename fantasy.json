@@ -1,0 +1,60 @@
+{
+  "splats": [
+    {
+      "filename": "./media/chill-zen-futuristic-environment.spz",
+      "transform": {
+        "translation": [
+          0,
+          0.6548951864242554,
+          0
+        ],
+        "rotation": [
+          180,
+          0,
+          0
+        ],
+        "quaternion": [
+          1,
+          0,
+          0,
+          6.123233995736766e-17
+        ],
+        "scale": 0.828302264213562
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "filename": "./media/spaceshipglb.glb",
+      "originalFilename": "spaceship.glb",
+      "mimeType": "model/gltf-binary",
+      "transform": {
+        "translation": [
+          0.02,
+          1.09,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "quaternion": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "scale": [
+          2.84,
+          2.84,
+          2.84
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "exportTimestamp": "2026-03-19T13:59:12.244Z",
+    "spzExportVersion": 3
+  }
+}

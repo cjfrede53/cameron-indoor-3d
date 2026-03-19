@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Positional Audio Demo</title>
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #000000;
+      font-family: "SF Mono", "Monaco", "Cascadia Code", monospace;
+    }
+
+    canvas {
+      display: block;
+      touch-action: none;
+    }
+
+    button {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      z-index: 1;
+      border: 1px solid #444;
+      background: #111;
+      color: #fff;
+      padding: 10px 14px;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: 0.7;
+      cursor: progress;
+    }
+  </style>
+</head>
+
+<body>
+  <button id="audio-toggle" type="button">Play Audio</button>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.180.0/three.module.js",
+        "@sparkjsdev/spark": "./spark.module.min.js"
+      }
+    }
+  </script>
+
+  <script type="module">
+    import * as THREE from "three";
+    import { SparkControls, utils } from "@sparkjsdev/spark";
+
+    const toggleButton = document.getElementById("audio-toggle");
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x000000);
+
+    const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 100);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    const localFrame = new THREE.Group();
+    scene.add(localFrame);
+    localFrame.add(camera);
+    localFrame.position.set(0, 1.6, 6);
+
+    const listener = new THREE.AudioListener();
+    camera.add(listener);
+
+    const controls = new SparkControls({
+      canvas: renderer.domElement,
+    });
+    controls.fpsMovement.moveSpeed *= 5.0;
+    controls.pointerControls.reverseRotate = utils.isMobile();
+    controls.pointerControls.rotateSpeed *= 2.0;
+    controls.pointerControls.slideSpeed *= 4.0;
+
+    const audioLoader = new THREE.AudioLoader();
+
+    async function addEmitter(color, position, url, volume, spinSpeed) {
+      const mesh = new THREE.Mesh(
+        new THREE.SphereGeometry(0.55, 24, 24),
+        new THREE.MeshBasicMaterial({ color, wireframe: true }),
+      );
+      mesh.position.set(...position);
+      mesh.userData.spinSpeed = spinSpeed;
+
+      const audio = new THREE.PositionalAudio(listener);
+      audio.setRefDistance(2);
+      audio.setMaxDistance(20);
+      audio.setRolloffFactor(1);
+      audio.setLoop(true);
+      audio.setVolume(volume);
+
+      mesh.add(audio);
+      scene.add(mesh);
+
+      const buffer = await audioLoader.loadAsync(url);
+      audio.setBuffer(buffer);
+
+      return { mesh, audio };
+    }
+
+    const emitters = await Promise.all([
+      addEmitter(0x8aff80, [-2.5, 1.4, -2.5], "./audio/atmosphere.mp3", 0.4, 0.003),
+      addEmitter(0x7cd6ff, [2.5, 1.8, -3.5], "./audio/atmosphere.mp3", 0.8, 0.003),
+    ]);
+
+    async function toggleAudio() {
+      toggleButton.disabled = true;
+
+      try {
+        await listener.context.resume();
+
+        const anyPlaying = emitters[0].audio.isPlaying;
+        for (const emitter of emitters) {
+          if (anyPlaying) {
+            emitter.audio.pause();
+          } else {
+            emitter.audio.play();
+          }
+        }
+
+        toggleButton.textContent = anyPlaying ? "Play Audio" : "Pause Audio";
+      } finally {
+        toggleButton.disabled = false;
+      }
+    }
+
+    toggleButton.addEventListener("click", () => {
+      void toggleAudio();
+    });
+
+    window.addEventListener("resize", () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    renderer.setAnimationLoop(() => {
+      controls.update(localFrame, camera);
+
+      for (const emitter of emitters) {
+        emitter.mesh.rotation.y += emitter.mesh.userData.spinSpeed;
+      }
+
+      renderer.render(scene, camera);
+    });
+
+    toggleButton.textContent = "Play Audio";
+  </script>
+</body>
+
+</html>
