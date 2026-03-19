@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Splat Audio Viewer</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #000;
+      font-family: sans-serif;
+    }
+
+    canvas {
+      display: block;
+      touch-action: none;
+    }
+
+    .controls {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      z-index: 1;
+      display: flex;
+      gap: 10px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.9);
+      color: #111;
+      padding: 10px 14px;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: 0.7;
+      cursor: progress;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="controls">
+    <button id="audio-toggle" type="button">Play Audio</button>
+    <button id="audio-visibility-toggle" type="button">Hide Audio Mesh</button>
+  </div>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.180.0/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
+        "@sparkjsdev/spark": "./spark.module.min.js"
+      }
+    }
+  </script>
+
+  <script type="module">
+    import * as THREE from "three";
+    import { SparkRenderer, SplatMesh, SparkControls, utils } from "@sparkjsdev/spark";
+
+    const toggleButton = document.getElementById("audio-toggle");
+    const visibilityToggleButton = document.getElementById("audio-visibility-toggle");
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 1000);
+
+    const renderer = new THREE.WebGLRenderer();
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    const cameraWorldPosition = new THREE.Vector3();
+
+    const localFrame = new THREE.Group();
+    scene.add(localFrame);
+    localFrame.add(camera);
+
+    const listener = new THREE.AudioListener();
+    camera.add(listener);
+
+    const spark = new SparkRenderer({
+      renderer,
+      maxStdDev: Math.sqrt(5),
+    });
+    scene.add(spark);
+
+    const controls = new SparkControls({
+      canvas: renderer.domElement,
+    });
+    controls.pointerControls.reverseRotate = utils.isMobile();
+    controls.pointerControls.rotateSpeed *= 2.0;
+    controls.pointerControls.slideSpeed *= 0.75;
+
+    const sceneData = await fetch("./scene.json").then((response) => response.json());
+
+    for (const splat of sceneData.splats ?? []) {
+      const splatMesh = new SplatMesh({
+        url: `./${splat.filename}`,
+        lod: true,
+      });
+
+      splatMesh.position.fromArray(splat.transform?.translation ?? [0, 0, 0]);
+      splatMesh.quaternion.fromArray(splat.transform?.quaternion ?? [0, 0, 0, 1]);
+
+      const scale = splat.transform?.scale ?? 1;
+      splatMesh.scale.set(scale, scale, scale);
+      scene.add(splatMesh);
+    }
+
+    const audioLoader = new THREE.AudioLoader();
+
+    async function addEmitter(position, url, volume, color) {
+      const anchor = new THREE.Mesh(
+        new THREE.SphereGeometry(0.3, 20, 20),
+        new THREE.MeshBasicMaterial({
+          color,
+          wireframe: true,
+        }),
+      );
+      anchor.position.set(...position);
+
+      const audio = new THREE.PositionalAudio(listener);
+      audio.setRefDistance(2);
+      audio.setMaxDistance(16);
+      audio.setRolloffFactor(1);
+      audio.setLoop(true);
+      audio.setVolume(volume);
+
+      anchor.add(audio);
+      scene.add(anchor);
+
+      const buffer = await audioLoader.loadAsync(url);
+      audio.setBuffer(buffer);
+
+      return {
+        anchor,
+        audio,
+      };
+    }
+
+    const emitters = await Promise.all([
+      addEmitter([-1.110502734303476, 0.7820859374999997, -1.9214999999403937], "./LetsGoDuke.mp3", 0.35, 0xa1b70d),
+      addEmitter([-7.010122829807673, 1.7702388016438353, -23.409829873132274], "./LetsGoDuke.mp3", 0.7, 0xe89923),
+    ]);
+    let audioMeshesVisible = true;
+
+    async function toggleAudio() {
+      toggleButton.disabled = true;
+
+      try {
+        await listener.context.resume();
+
+        const anyPlaying = emitters.some(({ audio }) => audio.isPlaying);
+        for (const { audio } of emitters) {
+          if (anyPlaying) {
+            audio.pause();
+          } else {
+            audio.play();
+          }
+        }
+
+        toggleButton.textContent = anyPlaying ? "Play Audio" : "Pause Audio";
+      } finally {
+        toggleButton.disabled = false;
+      }
+    }
+
+    function toggleAudioMeshes() {
+      audioMeshesVisible = !audioMeshesVisible;
+
+      for (const { anchor } of emitters) {
+        anchor.visible = audioMeshesVisible;
+      }
+
+      visibilityToggleButton.textContent = audioMeshesVisible ? "Hide Audio Mesh" : "Show Audio Mesh";
+    }
+
+    toggleButton.addEventListener("click", () => {
+      void toggleAudio();
+    });
+    visibilityToggleButton.addEventListener("click", toggleAudioMeshes);
+
+    renderer.domElement.addEventListener("click", () => {
+      camera.getWorldPosition(cameraWorldPosition);
+      const positionArray = [cameraWorldPosition.x, cameraWorldPosition.y, cameraWorldPosition.z];
+      console.log("Camera position", {
+        x: cameraWorldPosition.x,
+        y: cameraWorldPosition.y,
+        z: cameraWorldPosition.z,
+      });
+      console.log(positionArray);
+    });
+
+    window.addEventListener("resize", () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    renderer.setAnimationLoop(() => {
+      controls.update(localFrame, camera);
+      renderer.render(scene, camera);
+    });
+  </script>
+</body>
+
+</html>
