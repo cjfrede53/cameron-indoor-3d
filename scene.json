@@ -1,0 +1,60 @@
+{
+  "splats": [
+    {
+      "filename": "vast-empty-basketball-arena.spz",
+      "transform": {
+        "translation": [
+          -0.81,
+          0.9849677085876465,
+          -7.41
+        ],
+        "rotation": [
+          180,
+          0,
+          0
+        ],
+        "quaternion": [
+          1,
+          0,
+          0,
+          6.123233995736766e-17
+        ],
+        "scale": 1.513751745223999
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "filename": "object_0glb.glb",
+      "originalFilename": "object_0.glb",
+      "mimeType": "model/gltf-binary",
+      "transform": {
+        "translation": [
+          3.4,
+          1.32,
+          -0.65
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "quaternion": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "scale": [
+          0.29,
+          0.29,
+          0.29
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "exportTimestamp": "2026-03-17T13:38:39.539Z",
+    "spzExportVersion": 3
+  }
+}
