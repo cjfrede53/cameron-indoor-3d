@@ -1,7 +1,7 @@
 {
   "splats": [
     {
-      "filename": "vast-empty-basketball-arena.spz",
+      "filename": "./media/vast-empty-basketball-arena.spz",
       "transform": {
         "translation": [
           -0.81,
@@ -25,7 +25,7 @@
   ],
   "meshes": [
     {
-      "filename": "object_0glb.glb",
+      "filename": "./media/object_0glb.glb",
       "originalFilename": "object_0.glb",
       "mimeType": "model/gltf-binary",
       "transform": {
