@@ -331,6 +331,8 @@
       display: flex;
       width: max-content;
       animation: ribbonScroll 28s linear infinite;
+      will-change: transform;
+      backface-visibility: hidden;
     }
 
     .ribbonTrack span {
@@ -346,8 +348,8 @@
     }
 
     @keyframes ribbonScroll {
-      from { transform: translateX(0); }
-      to { transform: translateX(-50%); }
+      from { transform: translate3d(0, 0, 0); }
+      to { transform: translate3d(calc(-1 * var(--loop, 50%)), 0, 0); }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -432,6 +434,19 @@
     <div class="ribbonTrack">
       <span>CJ FREDERICKSON &nbsp;&middot;&nbsp; DUKE COMPUTER SCIENCE B.S. &rsquo;27 &nbsp;&middot;&nbsp; CAMERON INDOOR IN 3D &nbsp;&middot;&nbsp; CJ FREDERICKSON &nbsp;&middot;&nbsp; DUKE COMPUTER SCIENCE B.S. &rsquo;27 &nbsp;&middot;&nbsp; CAMERON INDOOR IN 3D &nbsp;&middot;&nbsp; CJ FREDERICKSON &nbsp;&middot;&nbsp; DUKE COMPUTER SCIENCE B.S. &rsquo;27 &nbsp;&middot;&nbsp; CAMERON INDOOR IN 3D &nbsp;&middot;&nbsp; CJ FREDERICKSON &nbsp;&middot;&nbsp; DUKE COMPUTER SCIENCE B.S. &rsquo;27 &nbsp;&middot;&nbsp; CAMERON INDOOR IN 3D &nbsp;&middot;&nbsp; </span><span aria-hidden="true">CJ FREDERICKSON &nbsp;&middot;&nbsp; DUKE COMPUTER SCIENCE B.S. &rsquo;27 &nbsp;&middot;&nbsp; CAMERON INDOOR IN 3D &nbsp;&middot;&nbsp; CJ FREDERICKSON &nbsp;&middot;&nbsp; DUKE COMPUTER SCIENCE B.S. &rsquo;27 &nbsp;&middot;&nbsp; CAMERON INDOOR IN 3D &nbsp;&middot;&nbsp; CJ FREDERICKSON &nbsp;&middot;&nbsp; DUKE COMPUTER SCIENCE B.S. &rsquo;27 &nbsp;&middot;&nbsp; CAMERON INDOOR IN 3D &nbsp;&middot;&nbsp; CJ FREDERICKSON &nbsp;&middot;&nbsp; DUKE COMPUTER SCIENCE B.S. &rsquo;27 &nbsp;&middot;&nbsp; CAMERON INDOOR IN 3D &nbsp;&middot;&nbsp; </span>
     </div>
+    <script>
+    // Measure one ribbon span exactly so the loop restarts pixel-perfectly,
+    // and re-measure once the Oswald font loads (which changes the width).
+    (() => {
+      const track = document.querySelector("#ribbon .ribbonTrack");
+      const span = track.querySelector("span");
+      const setLoop = () =>
+        track.style.setProperty("--loop", span.getBoundingClientRect().width + "px");
+      setLoop();
+      window.addEventListener("resize", setLoop);
+      if (document.fonts?.ready) document.fonts.ready.then(setLoop);
+    })();
+  </script>
   </div>
 
   <div id="loader">
