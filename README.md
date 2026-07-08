@@ -1,185 +1,113 @@
-# Immersive Gaussian Splat Worlds (Fantasy, Basketball, Hand-Drawn)
+# Cameron Indoor: After Hours 🏀
 
-## Overview
-This project explores how **Gaussian splatting, 3D models, and spatial audio** can be combined to create immersive, interactive environments.
+**[Take the tour →](https://cjfrede53.github.io/cameron-indoor-3d/)**
 
-I developed three distinct scenes:
-**Basketball Arena** – a realistic stadium environment with spatial Duke-themed audio  
-**Fantasy World** – a stylized, futuristic environment with ambient sound  
-**Hand-Drawn Scene** – an experimental, artistic environment exploring non-photorealistic splats  
+No ticket. No crowd. No lines. A private, after-hours walk through an empty Cameron Indoor Stadium — a photorealistic 3D Gaussian splat capture with the roar of game night still hanging in the air.
 
-Each scene allows users to navigate freely and experience **positional audio** that changes based on their position in the world.
+Visitors enter through a Duke Athletics–styled landing page, then follow a guided tour through the arena — courtside, center court, the student section, the team bench, the tunnel — with narrated stops and spatial crowd audio that swells as they approach the stands. Everything renders live in the browser: no plugins, no install, no backend.
 
 ---
 
-## Core Concepts
+## The Concept
 
-This project combines three main technologies:
-
-### 1. Gaussian Splatting (SparkJS)
-- `.spz` files represent dense 3D environments  
-- Rendered efficiently using **SparkRenderer**  
-- No traditional lighting required  
-
-### 2. 3D Models (GLB)
-- Loaded using Three.js `GLTFLoader`  
-- Used to add focal objects (e.g., basketball, spaceship)  
-- Converted to `MeshBasicMaterial` for compatibility with splats  
-
-### 3. Spatial Audio
-- Built using `THREE.PositionalAudio`  
-- Audio sources are placed at specific 3D coordinates  
-- Volume and intensity change based on distance  
+Gaussian splatting is remarkable at capturing spaces and terrible at capturing people — crowds render as smears. Rather than fight that constraint, this project reframes it: the capture is of Cameron **empty**, a view of the building almost nobody gets, while the spatial audio (recorded at real games) haunts the arena with the sound of a full house. The limitation became the concept.
 
 ---
 
-## Scenes
+## Features
 
-### Basketball Scene
-- Cameron Indoor arena splat environment  
-- Embedded basketball model (`.glb`)  
-- Multiple audio emitters playing Duke chants  
-- Demonstrates realistic spatial placement in a large-scale environment  
-
-### Fantasy Scene
-- Futuristic / stylized splat environment  
-- Floating object (spaceship) loaded via GLB  
-- Ambient environmental audio  
-- Focus on atmosphere and immersion  
-
-### Hand-Drawn Scene
-- Experimental scene using stylized or non-photoreal splats  
-- Explores how Gaussian splatting can be used creatively  
-- Less about realism, more about artistic interpretation  
+- 🏟️ Photorealistic Gaussian splat capture of Cameron Indoor Stadium, navigable in first person
+- 🎧 Layered spatial audio: a global ambient crowd bed plus positional emitters placed in the stands — chants swell as you approach the student section
+- 🗺️ Guided tour with narrated stops, smooth camera glides between them, and free-roam mode with a "Back to Tour" resume
+- 🎨 Duke Athletics–styled landing page: blue-duotone Cameron Crazies photo, varsity typography, broadcast-style entrance animation
+- 📇 Perpetual "ribbon board" credit marquee, styled after arena LED boards
+- ⚡ Runs entirely in the browser — static site, no server, deployed on GitHub Pages
 
 ---
 
-## Project Structure
-/project-root
+## Tech Stack
 
-├── basketball.html
-├── basketball_splat_audio.html
-├── basketball.json
-
-├── fantasy.html
-├── fantasy_splat_audio.html
-├── fantasy.json
-
-├── handdrawn.html (or equivalent)
-
-├── /media
-│ ├── *.spz # Gaussian splat environments
-│ ├── *.glb # 3D models
-
-├── /audio
-│ ├── *.mp3 # spatial audio files
-
-├── spark.module.min.js
-└── index.html
-
+- **Three.js** — rendering, camera, GLB model loading, Web Audio integration
+- **SparkJS** (`SparkRenderer`, `SplatMesh`, `SparkControls`) — Gaussian splat rendering from `.spz`
+- **THREE.PositionalAudio + THREE.Audio** — spatial emitters layered over a listener-attached ambient bed
+- **Vanilla HTML/CSS/JS** — no framework, no build step
+- **GitHub Actions + GitHub Pages** — automatic deploy on every push
+- **ffmpeg** — crowd audio assembled from my own game recordings: clips crossfaded into one continuous track, with the loop point sealed so the restart is inaudible
 
 ---
 
 ## How It Works
 
-Each scene is defined by a JSON file:
+1. The scene is defined in `basketball.json`: splat transforms and GLB mesh placements.
+2. `SplatMesh` streams the ~8 MB `.spz` arena capture; a basketball GLB is placed on the court with materials converted to `MeshBasicMaterial` for compatibility with splats.
+3. While the splat streams in behind the landing page, the Enter button reads "Loading the arena…" — by the time visitors finish reading the controls, it flips to "Enter the Arena."
+4. The Enter click doubles as the browser's user-gesture requirement, unlocking the Web Audio context so the crowd starts immediately — no autoplay block.
+5. The guided tour glides the camera between authored stops (position-only lerp, so visitors keep full look control) while a caption card narrates each location.
 
-```json
-{
-  "splats": [...],
-  "meshes": [...]
-}
+---
 
-Rendering Pipeline
-Load scene JSON
-Render splats using SplatMesh
-Load GLB models using GLTFLoader
-Add positional audio emitters
-Render with Three.js
-Setup Instructions
-Option 1: Python (Recommended)
+## Design Decisions
+
+**Frame the constraint as the concept.** Splats can't render people, so the experience is marketed as exactly what it is: an exclusive after-hours tour of an empty arena, with the crowd present only as sound.
+
+**Sound design like a game.** One positional emitter per crowd hotspot creates dead zones; a single global track has no space. The solution is layered: a low-volume ambient bed attached to the listener guarantees the crowd is always audible, while positional emitters in the stands add direction and swell. All sources play in sync — real crowds chant in unison, and desynced sources read as dueling radios, not atmosphere.
+
+**The tour is the "so what."** A splat you can walk around is a demo; a narrated tour with insider captions is an experience. The tour also directs attention toward the areas the splat renders beautifully and away from signage, which splats render poorly. Stops were authored in-scene: clicking logs the camera position to the console, which gets pasted into the tour config.
+
+**Athletics, not glassmorphism.** Flat royal blue, Oswald block type with athletic tracking, sharp corners, a duotone crowd photo (luminosity blend), and a scrolling ribbon-board credit line — the visual language of a team site, not a tech demo.
+
+---
+
+## Key Technical Challenges
+
+**Making a 2-minute audio loop feel endless.** Short chant loops are maddening. The track is assembled from four of my own game recordings, crossfaded into one ~2:40 sequence — and the loop point is sealed by fading the track's tail out underneath its fading-in head, so the restart can't be heard. All three audio sources share one downloaded buffer.
+
+**Positional audio dead zones.** Away from the emitters, the arena went silent — the falloff that creates the spatial effect also creates emptiness. Fixed with the ambient bed layer (attached to the listener, immune to distance) under the positional emitters.
+
+**Deploying splats to GitHub Pages.** The `.spz` capture, models, and audio had been excluded from version control; Pages can only serve what's committed. The assets (~25 MB total, well under GitHub's limits) are now committed, and a GitHub Actions workflow uploads the repo as-is on every push — no build step needed for a vanilla static site.
+
+**Camera glides that don't fight the controls.** The tour animates only the camera's *position* (a per-frame lerp toward the stop), never its rotation — visitors keep full look control during transit, so the glide feels like being walked somewhere rather than a cutscene.
+
+---
+
+## Running Locally
+
+No installation needed to try it — the tour is live at [cjfrede53.github.io/cameron-indoor-3d](https://cjfrede53.github.io/cameron-indoor-3d/). To run it yourself:
+
+```bash
 python3 -m http.server 8000
+```
 
-Open in browser:
+Then open `http://localhost:8000`. (A local server is required — opening `index.html` directly blocks the scene's `fetch` calls.)
 
-http://localhost:8000
-Option 2: Node.js
-npx serve .
-Usage
+## Controls
 
-Open any of the following in your browser:
+- **Click + drag** — look around
+- **Arrow keys / two-finger drag** — move around the court
+- **Two-finger click + drag** — rise and descend
+- **Back to Tour** — resume the guided tour from wherever you left off
 
-basketball.html
-basketball_splat_audio.html
-fantasy.html
-fantasy_splat_audio.html
-handdrawn.html
-Controls
-Click + drag → Look around
-Trackpad / WASD → Move through the scene
-Play Audio button → Toggle sound
-Hide Audio Mesh button → Show/hide emitter spheres
-Key Technical Challenges
-1. Meshes Not Appearing
+---
 
-GLB models were initially missing in audio scenes because the meshes array from the JSON was not loaded.
+## Deployment
 
-Fix:
+Deploys automatically to GitHub Pages via GitHub Actions (`.github/workflows/deploy.yml`) on every push to `main`.
 
-import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+---
 
-const gltfLoader = new GLTFLoader();
-for (const mesh of sceneData.meshes ?? []) {
-  const gltf = await gltfLoader.loadAsync(mesh.filename);
-  scene.add(gltf.scene);
-}
-2. File Path Issues
+## Future Improvements
 
-Some assets failed to load due to duplicated paths like:
+- More tour stops and audio hotspots (championship banners, Krzyzewskiville)
+- VR / XR support
+- Additional scenes (a stylized fantasy environment is already captured)
+- Higher-fidelity splat recapture
 
-././media/file.glb
+---
 
-Fix:
+## Credits
 
-mesh.filename
-3. Audio Not Playing
-
-Browsers block autoplay audio.
-
-Fix:
-
-await listener.context.resume();
-4. Objects Appearing Missing
-
-Objects were sometimes:
-
-Too small
-Too far away
-
-Debug strategy:
-
-model.scale.set(1, 1, 1);
-model.position.set(0, 1, 0);
-Why This Project Matters
-
-This project explores a key idea:
-
-How can we move beyond traditional 3D modeling into more immersive, experiential environments?
-
-Gaussian splatting enables:
-
-Fast rendering of complex scenes
-Photorealistic and stylized environments
-New ways to combine visuals, interaction, and sound
-
-By adding spatial audio, the experience becomes something users don’t just see — but feel and navigate.
-
-Future Improvements
-More dynamic audio zones
-VR / XR support
-Scene switching UI
-More stylized splat experiments
-Credits
-Three.js
-SparkJS (Gaussian splatting)
-Duke University coursework / project inspiration
+- [Three.js](https://threejs.org/) — 3D rendering
+- [SparkJS](https://sparkjs.dev/) — Gaussian splat rendering
+- Landing page photo: ["Cameron Crazies" by Adam Glanzman](https://commons.wikimedia.org/wiki/File:20131203_Cameron_Crazies.jpg), via Wikimedia Commons, [CC BY 2.0](https://creativecommons.org/licenses/by/2.0)
+- Crowd audio recorded by me at Duke games
+- Built for Duke University coursework, then extended into this deployed experience
