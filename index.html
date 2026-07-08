@@ -4,240 +4,810 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Spark • Marble Starter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+  <title>Cameron Indoor: After Hours — A Private 3D Tour</title>
+  <meta name="description"
+    content="Walk through a Gaussian splat capture of Cameron Indoor Stadium with spatial Duke chant audio. Built with Three.js and SparkJS — rendered entirely in your browser." />
   <style>
+    :root {
+      --duke-royal: #0736a4;
+      --duke-navy: #012169;
+      --duke-white: #ffffff;
+    }
+
     body {
       margin: 0;
+      overflow: hidden;
+      background: #000;
+      font-family: 'Oswald', 'Arial Narrow', ui-sans-serif, system-ui, sans-serif;
     }
 
     canvas {
+      display: block;
       touch-action: none;
+    }
+
+    .controls {
+      position: fixed;
+      top: 52px;
+      left: 16px;
+      z-index: 1;
+      display: flex;
+      gap: 8px;
+    }
+
+    button {
+      border: 2px solid var(--duke-white);
+      background: var(--duke-white);
+      color: var(--duke-navy);
+      font-family: inherit;
+      font-weight: 600;
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 9px 16px;
+      cursor: pointer;
+    }
+
+    button:hover:not(:disabled) {
+      background: var(--duke-navy);
+      color: var(--duke-white);
+      border-color: var(--duke-navy);
+    }
+
+    button:disabled {
+      opacity: 0.75;
+      cursor: progress;
+    }
+
+    /* Landing overlay — flat Duke Athletics field */
+    #loader {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      /* Crowd photo repainted in Duke blue: the luminosity blend keeps the
+         photo's light/dark detail but replaces all its color with the royal
+         blue underneath — the classic athletics-poster duotone. If the image
+         file is missing, this gracefully falls back to the flat blue. */
+      background-color: var(--duke-royal);
+      background-image: url('./media/crazies.jpg');
+      background-size: cover;
+      background-position: center;
+      background-blend-mode: luminosity;
+      color: var(--duke-white);
+      padding: 24px;
+      transition: opacity 500ms ease;
+      overflow-y: auto;
+      padding-top: 56px;
+    }
+
+    /* Darkening veil so the text stays readable over busy crowd areas */
+    #loader::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(1, 33, 105, 0.45);
+    }
+
+    #loader.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .introCard {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      max-width: 720px;
+      width: 100%;
+      margin: auto;
+      text-align: center;
+    }
+
+    .eyebrow {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.42em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.85);
+    }
+
+    .introCard h1 {
+      margin: 0;
+      font-weight: 700;
+      font-size: clamp(34px, 6vw, 56px);
+      line-height: 1.02;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .titleRule {
+      width: 72px;
+      height: 4px;
+      background: var(--duke-white);
+    }
+
+     .tagline {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      max-width: 58ch;
+      color: rgba(255, 255, 255, 0.95);
+      background: rgba(205, 216, 235, 0.14);
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      padding: 12px 18px;
+    }
+
+    .controlsGuide {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: 100%;
+      max-width: 440px;
+      text-align: left;
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      font-size: 13px;
+      border-top: 1px solid rgba(255, 255, 255, 0.35);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.35);
+      padding: 16px 0;
+    }
+
+    .controlRow {
+      display: flex;
+      align-items: baseline;
+      gap: 14px;
+      color: rgba(255, 255, 255, 0.92);
+    }
+
+    .key {
+      flex-shrink: 0;
+      min-width: 168px;
+      font-family: 'Oswald', 'Arial Narrow', sans-serif;
+      font-weight: 600;
+      font-size: 12px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--duke-navy);
+      background: var(--duke-white);
+      padding: 4px 8px;
+      text-align: center;
+    }
+
+    #enter-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      padding: 14px 38px;
+    }
+
+    #enter-button.ready .spinner {
+      display: none;
+    }
+
+    .spinner {
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      border: 2px solid rgba(1, 33, 105, 0.3);
+      border-top-color: var(--duke-navy);
+      animation: spin 900ms linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Controls hint */
+    #hint {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 1;
+      font-family: 'Oswald', 'Arial Narrow', sans-serif;
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      text-align: center;
+      color: var(--duke-white);
+      background: var(--duke-navy);
+      border-top: 2px solid var(--duke-white);
+      padding: 14px 16px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    @media (max-width: 700px) {
+      #hint {
+        font-size: 12px;
+        letter-spacing: 0.1em;
+        padding: 11px 12px;
+      }
+    }
+
+    /* ---- Entrance sequence: broadcast-style intro ---- */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes slamIn {
+      0% { opacity: 0; transform: scale(1.45); letter-spacing: 0.22em; }
+      60% { opacity: 1; }
+      100% { opacity: 1; transform: scale(1); letter-spacing: 0.06em; }
+    }
+
+    @keyframes shine {
+      from { background-position: 200% center; }
+      to { background-position: -200% center; }
+    }
+
+    @keyframes ruleWipe {
+      from { transform: scaleX(0); }
+      to { transform: scaleX(1); }
+    }
+
+    @keyframes trackIn {
+      from { opacity: 0; letter-spacing: 0.7em; }
+      to { opacity: 1; letter-spacing: 0.42em; }
+    }
+
+    .eyebrow {
+      animation: trackIn 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+
+    .introCard h1 {
+      background: linear-gradient(
+        105deg,
+        #ffffff 42%,
+        #bcd7ff 50%,
+        #ffffff 58%
+      );
+      background-size: 250% auto;
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      animation:
+        slamIn 650ms cubic-bezier(0.34, 1.3, 0.44, 1) 250ms both,
+        shine 5s linear 1.6s infinite;
+    }
+
+    .titleRule {
+      transform-origin: center;
+      animation: ruleWipe 450ms cubic-bezier(0.22, 1, 0.36, 1) 750ms both;
+    }
+
+    .tagline {
+      animation: fadeUp 550ms ease-out 950ms both;
+    }
+
+    .controlsGuide {
+      animation: fadeUp 550ms ease-out 1100ms both;
+    }
+
+    #enter-button {
+      animation: fadeUp 550ms ease-out 1250ms both;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .eyebrow, .introCard h1, .titleRule, .tagline, .controlsGuide, #enter-button {
+        animation: none;
+      }
+      .introCard h1 {
+        background: none;
+        color: var(--duke-white);
+      }
+    }
+
+    /* ---- Credit ribbon: arena LED board across the top ---- */
+    #ribbon {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 20;
+      overflow: hidden;
+      background: var(--duke-white);
+      border-bottom: 2px solid var(--duke-navy);
+    }
+
+    .ribbonTrack {
+      display: flex;
+      width: max-content;
+      animation: ribbonScroll 28s linear infinite;
+    }
+
+    .ribbonTrack span {
+      flex-shrink: 0;
+      white-space: nowrap;
+      font-family: 'Oswald', 'Arial Narrow', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--duke-navy);
+      padding: 8px 0;
+    }
+
+    @keyframes ribbonScroll {
+      from { transform: translateX(0); }
+      to { transform: translateX(-50%); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .ribbonTrack {
+        animation: none;
+      }
+    }
+
+    /* ---- Back to Tour: appears in the card's place during free roam ---- */
+    #tourReturn {
+      position: fixed;
+      bottom: 72px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 2;
+      transition: opacity 300ms ease, transform 300ms ease;
+    }
+
+    #tourReturn.hiddenCard {
+      opacity: 0;
+      transform: translateX(-50%) translateY(12px);
+      pointer-events: none;
+    }
+
+    /* ---- Guided tour card ---- */
+    #tourCard {
+      position: fixed;
+      bottom: 72px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 2;
+      width: min(440px, calc(100vw - 32px));
+      background: var(--duke-navy);
+      border: 2px solid var(--duke-white);
+      color: var(--duke-white);
+      padding: 16px 18px 14px;
+      transition: opacity 300ms ease, transform 300ms ease;
+    }
+
+    #tourCard.hiddenCard {
+      opacity: 0;
+      transform: translateX(-50%) translateY(12px);
+      pointer-events: none;
+    }
+
+    #tourStep {
+      margin: 0 0 2px;
+      font-family: 'Oswald', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.65);
+    }
+
+    #tourTitle {
+      margin: 0 0 6px;
+      font-family: 'Oswald', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    #tourText {
+      margin: 0 0 12px;
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      font-size: 13px;
+      line-height: 1.55;
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    .tourButtons {
+      display: flex;
+      gap: 8px;
     }
   </style>
 </head>
 
 <body>
+  <div id="ribbon" aria-label="CJ Frederickson, Duke Computer Science B.S. 2027">
+    <div class="ribbonTrack">
+      <span>CJ FREDERICKSON &nbsp;&middot;&nbsp; DUKE COMPUTER SCIENCE B.S. &rsquo;27 &nbsp;&middot;&nbsp; CAMERON INDOOR IN 3D &nbsp;&middot;&nbsp; CJ FREDERICKSON &nbsp;&middot;&nbsp; DUKE COMPUTER SCIENCE B.S. &rsquo;27 &nbsp;&middot;&nbsp; CAMERON INDOOR IN 3D &nbsp;&middot;&nbsp; CJ FREDERICKSON &nbsp;&middot;&nbsp; DUKE COMPUTER SCIENCE B.S. &rsquo;27 &nbsp;&middot;&nbsp; CAMERON INDOOR IN 3D &nbsp;&middot;&nbsp; CJ FREDERICKSON &nbsp;&middot;&nbsp; DUKE COMPUTER SCIENCE B.S. &rsquo;27 &nbsp;&middot;&nbsp; CAMERON INDOOR IN 3D &nbsp;&middot;&nbsp; </span><span aria-hidden="true">CJ FREDERICKSON &nbsp;&middot;&nbsp; DUKE COMPUTER SCIENCE B.S. &rsquo;27 &nbsp;&middot;&nbsp; CAMERON INDOOR IN 3D &nbsp;&middot;&nbsp; CJ FREDERICKSON &nbsp;&middot;&nbsp; DUKE COMPUTER SCIENCE B.S. &rsquo;27 &nbsp;&middot;&nbsp; CAMERON INDOOR IN 3D &nbsp;&middot;&nbsp; CJ FREDERICKSON &nbsp;&middot;&nbsp; DUKE COMPUTER SCIENCE B.S. &rsquo;27 &nbsp;&middot;&nbsp; CAMERON INDOOR IN 3D &nbsp;&middot;&nbsp; CJ FREDERICKSON &nbsp;&middot;&nbsp; DUKE COMPUTER SCIENCE B.S. &rsquo;27 &nbsp;&middot;&nbsp; CAMERON INDOOR IN 3D &nbsp;&middot;&nbsp; </span>
+    </div>
+  </div>
+
+  <div id="loader">
+    <div class="introCard">
+      <p class="eyebrow">Duke Blue Devils &middot; A Private 3D Tour</p>
+      <h1>Cameron Indoor Stadium:<br>After Hours</h1>
+      <div class="titleRule"></div>
+      <p class="tagline">No ticket. No crowd. No lines. A private after-hours walk through an empty Cameron Indoor Stadium — a photorealistic Gaussian splat capture with the roar of game night still hanging in the air. Built with Three.js and SparkJS.</p></p>
+
+      <div class="controlsGuide">
+        <div class="controlRow"><span class="key">Click + drag</span><span>Look around</span></div>
+        <div class="controlRow"><span class="key">Arrows / 2-finger drag</span><span>Move around the court</span></div>
+        <div class="controlRow"><span class="key">2-finger click + drag</span><span>Rise and descend</span></div>
+        <div class="controlRow"><span class="key">Spatial audio</span><span>Chants start when you enter &mdash; walk toward them, they get louder</span></div>
+      </div>
+
+      <button id="enter-button" type="button" disabled>
+        <span class="spinner"></span>
+        <span id="enter-label">Loading the arena&hellip;</span>
+      </button>
+    </div>
+  </div>
+
+  <div id="tourReturn" class="hiddenCard">
+    <button id="tour-restart" type="button">Back to Tour</button>
+  </div>
+
+  <div id="tourCard" class="hiddenCard">
+    <p id="tourStep"></p>
+    <h2 id="tourTitle"></h2>
+    <p id="tourText"></p>
+    <div class="tourButtons">
+      <button id="tour-next" type="button">Next stop</button>
+      <button id="tour-end" type="button">Free roam</button>
+    </div>
+  </div>
+
+  <div id="hint">Drag to look &middot; Arrows or 2-finger drag to move &middot; 2-finger click-drag to rise</div>
+
   <script type="importmap">
     {
       "imports": {
         "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.180.0/three.module.js",
         "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
-        "lil-gui": "https://cdn.jsdelivr.net/npm/lil-gui@0.20.0/+esm",
         "@sparkjsdev/spark": "./spark.module.min.js"
       }
     }
   </script>
-  <script src="https://cdn.jsdelivr.net/npm/stats.js@0.17.0/build/stats.min.js"></script>
+
   <script type="module">
     import * as THREE from "three";
     import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-    import { SparkRenderer, SplatMesh, SparkControls, SparkXr, textSplats, dyno, utils } from "@sparkjsdev/spark";
-    import GUI from "lil-gui";
+    import { SparkRenderer, SplatMesh, SparkControls, utils } from "@sparkjsdev/spark";
 
-    const RENDER_TIMEOUT_MS = 5 * 1000;
-    const URL_BASE = ".";
+    const loader = document.getElementById("loader");
 
-    const scene = new THREE.Scene();
-    // scene.background = new THREE.Color(0.75, 1.0, 1.0);
-    const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 1000);
-    const renderer = new THREE.WebGLRenderer();
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(renderer.domElement);
-
-    // Make a local frame of reference that we can move to control
-    // the camera, or as a frame of reference in WebXR mode
-    const localFrame = new THREE.Group();
-    scene.add(localFrame);
-
-    // Lower the splat rendering width to sqrt(5) std devs for more performance
-    const spark = new SparkRenderer({
-      renderer,
-      maxStdDev: Math.sqrt(5),
-    });
-    scene.add(spark);
-    localFrame.add(camera);
-
-    const stats = new Stats();
-    document.body.appendChild(stats.dom);
-
-    const gui = new GUI({ title: "Settings" });
-
-    const scene_json = await fetch(`${URL_BASE}/handDrawn.json`).then((response) => response.json());
-    const splats = scene_json.splats ?? [];
-    const meshes = scene_json.meshes ?? [];
-
-    // Load splats
-    for (const splat of splats) {
-      const splatMesh = new SplatMesh({ url: `${URL_BASE}/${splat.filename}`, lod: true });
-      splatMesh.position.fromArray(splat.transform?.translation ?? [0, 0, 0]);
-      splatMesh.quaternion.fromArray(splat.transform?.quaternion ?? [0, 0, 0, 1]);
-      const scale = splat.transform?.scale ?? 1;
-      splatMesh.scale.set(scale, scale, scale);
-      scene.add(splatMesh);
+    function showLoadError(message) {
+      loader.innerHTML = `<h1>Something went wrong</h1><p>${message}</p>`;
+      loader.classList.remove("hidden");
     }
 
-    // Helper to extract albedo color and texture from any material
-    function extractAlbedoProperties(material) {
-      let color = new THREE.Color(0x888888);
-      let map = null;
+    try {
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 1000);
 
-      if (material.color instanceof THREE.Color) {
-        color = material.color.clone();
+      const renderer = new THREE.WebGLRenderer();
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      document.body.appendChild(renderer.domElement);
+
+      const cameraWorldPosition = new THREE.Vector3();
+
+      const localFrame = new THREE.Group();
+      scene.add(localFrame);
+      localFrame.add(camera);
+
+      const listener = new THREE.AudioListener();
+      camera.add(listener);
+
+      const spark = new SparkRenderer({
+        renderer,
+        maxStdDev: Math.sqrt(5),
+      });
+      scene.add(spark);
+
+      const controls = new SparkControls({
+        canvas: renderer.domElement,
+      });
+      controls.pointerControls.reverseRotate = utils.isMobile();
+      controls.pointerControls.rotateSpeed *= 2.0;
+      controls.pointerControls.slideSpeed *= 0.75;
+
+      const sceneData = await fetch("./basketball.json").then((response) => response.json());
+
+      const splatMeshes = [];
+      for (const splat of sceneData.splats ?? []) {
+        const splatMesh = new SplatMesh({
+          url: splat.filename,
+          lod: true,
+        });
+
+        splatMesh.position.fromArray(splat.transform?.translation ?? [0, 0, 0]);
+        splatMesh.quaternion.fromArray(splat.transform?.quaternion ?? [0, 0, 0, 1]);
+
+        const scale = splat.transform?.scale ?? 1;
+        splatMesh.scale.set(scale, scale, scale);
+        scene.add(splatMesh);
+        splatMeshes.push(splatMesh);
       }
-      if (material.map) {
-        map = material.map;
+
+      function extractAlbedoProperties(material) {
+        let color = new THREE.Color(0x888888);
+        let map = null;
+
+        if (material.color instanceof THREE.Color) {
+          color = material.color.clone();
+        }
+        if (material.map) {
+          map = material.map;
+        }
+
+        return { color, map };
       }
 
-      return { color, map };
-    }
+      function convertToBasicMaterials(object) {
+        object.traverse((child) => {
+          if (child.isMesh) {
+            const originalMaterial = child.material;
+            const originalMaterials = Array.isArray(originalMaterial)
+              ? originalMaterial
+              : [originalMaterial];
 
-    // Convert mesh materials to MeshBasicMaterial (matches Marble's behavior)
-    function convertToBasicMaterials(object) {
-      object.traverse((child) => {
-        if (child.isMesh) {
-          const originalMaterial = child.material;
-          const originalMaterials = Array.isArray(originalMaterial)
-            ? originalMaterial
-            : [originalMaterial];
-
-          if (originalMaterials.length === 0) {
-            child.material = new THREE.MeshBasicMaterial({
-              color: 0x888888,
-              side: THREE.DoubleSide,
-            });
-          } else {
-            const newMaterials = originalMaterials.map((mat) => {
-              const { color, map } = extractAlbedoProperties(mat);
-              return new THREE.MeshBasicMaterial({
-                color: color,
-                map: map,
+            if (originalMaterials.length === 0) {
+              child.material = new THREE.MeshBasicMaterial({
+                color: 0x888888,
                 side: THREE.DoubleSide,
               });
-            });
+            } else {
+              const newMaterials = originalMaterials.map((mat) => {
+                const { color, map } = extractAlbedoProperties(mat);
+                return new THREE.MeshBasicMaterial({
+                  color: color,
+                  map: map,
+                  side: THREE.DoubleSide,
+                });
+              });
 
-            child.material = newMaterials.length === 1 ? newMaterials[0] : newMaterials;
+              child.material = newMaterials.length === 1 ? newMaterials[0] : newMaterials;
+            }
           }
+        });
+      }
+
+      const gltfLoader = new GLTFLoader();
+
+      for (const mesh of sceneData.meshes ?? []) {
+        try {
+          const gltf = await gltfLoader.loadAsync(mesh.filename);
+          const model = gltf.scene;
+
+          convertToBasicMaterials(model);
+
+          model.position.fromArray(mesh.transform?.translation ?? [0, 0, 0]);
+          model.quaternion.fromArray(mesh.transform?.quaternion ?? [0, 0, 0, 1]);
+
+          const meshScale = mesh.transform?.scale ?? [1, 1, 1];
+          model.scale.set(meshScale[0], meshScale[1], meshScale[2]);
+
+          scene.add(model);
+        } catch (error) {
+          console.warn(`Failed to load mesh: ${mesh.filename}`, error);
+        }
+      }
+
+      const audioLoader = new THREE.AudioLoader();
+      const crowdBuffer = await audioLoader.loadAsync("./audio/crowd-loop.mp3");
+
+      function addEmitter(position, volume, color) {
+        const anchor = new THREE.Mesh(
+          new THREE.SphereGeometry(0.3, 20, 20),
+          new THREE.MeshBasicMaterial({
+            color,
+            wireframe: true,
+          }),
+        );
+        anchor.position.set(...position);
+
+        const audio = new THREE.PositionalAudio(listener);
+        audio.setRefDistance(2.5);
+        audio.setMaxDistance(26);
+        audio.setRolloffFactor(0.9);
+        audio.setLoop(true);
+        audio.setVolume(volume);
+
+        anchor.visible = false;
+        anchor.add(audio);
+        scene.add(anchor);
+
+        audio.setBuffer(crowdBuffer);
+
+        return {
+          anchor,
+          audio,
+        };
+      }
+
+      const emitters = [
+        addEmitter([-1.110502734303476, 0.7820859374999997, -1.9214999999403937], 0.28, 0xa1b70d),
+        addEmitter([5.301228898393928, 1.5633840303474649, -19.879822668873214], 0.40, 0xa1b70d),
+        addEmitter([3.726717898461137, 1.4149283410612519, -20.406629121462593], 0.40, 0xa1b70d),
+        addEmitter([4.259562468613059, 1.4149283410612519, -18.83732355698768], 0.40, 0xa1b70d)
+      ];
+
+      // Global ambient bed: attached to the listener, not to a point in
+      // space, so the crowd is always audible wherever you wander. The
+      // positional emitters layer on top and swell as you approach them.
+      const ambient = new THREE.Audio(listener);
+      ambient.setBuffer(crowdBuffer);
+      ambient.setLoop(true);
+      ambient.setVolume(0.20);
+
+  
+
+      const allAudio = [...emitters.map((e) => e.audio), ambient];
+
+      // The splat streams in behind the welcome card; enable Enter when ready.
+      // (`initialized` resolves when the splat data is ready; awaiting a
+      // missing property resolves immediately, so this is safe either way.)
+      const enterButton = document.getElementById("enter-button");
+      const enterLabel = document.getElementById("enter-label");
+
+      await Promise.all(splatMeshes.map((m) => m.initialized));
+
+      enterButton.classList.add("ready");
+      enterLabel.textContent = "Enter the Arena \u{1F50A}";
+      enterButton.disabled = false;
+
+      // ---------------------------------------------------------------
+      // GUIDED TOUR STOPS — edit these!
+      // To author a stop: walk somewhere good, click the scene, and copy
+      // the camera position from the browser console (Cmd+Option+J).
+      // Paste it as `position`, then write your title + caption.
+      // The coordinates below are PLACEHOLDERS — replace them.
+      // ---------------------------------------------------------------
+      const TOUR = [
+        {
+          position: [-1.1, 1.5, -1.9],
+          title: "Courtside",
+          text: "You're at floor level, feet from the hardwood — closer than most fans ever get. Cameron seats just 9,314, and it's this tightness that makes it the loudest building in college basketball."
+        },
+        {
+          position: [1.0, 1.5, -10.0],
+          title: "Center Court",
+          text: "You're standing at the heart of Coach K Court, where five national championship teams have made history. When our beloved Blue Devil mascot isn't stealing the show with the worm, you'll often find the cheerleaders and pep band spelling out D-U-K-E, keeping Cameron Indoor roaring during timeouts."
+        },
+        {
+          position: [3.45, 1.5, -19.3],
+          title: "The Student Section",
+          text: "Home of the Cameron Crazies — the students camp out in Krzyzewskiville for weeks to stand here. Listen: the chants get louder as you approach."
+        },
+        {
+          position: [-4.3138445440221105, 1.413440954496575, -19.27859992872761],
+          title: "The Team Bench",
+          text: "Where the Blue Devils sit — and rarely stay seated. Coach Scheyer's huddle happens right here, close enough to the front row that fans feel like they're part of the huddle too."
+        },
+        {
+          position: [8.21088340719767, 1.5934807953112216, 0.40840136084389095],
+          title: "The Tunnel",
+          text: "Where the Blue Devils take the floor. On game night, the roar starts here before anyone's even visible — the Crazies can see down the tunnel before the rest of the building can."
+        },
+        {
+          position: [4.116772988145704, 1.3288720443455688, 3.038512450523039],
+          title: "The Pep Band Section",
+          text: "Hear that music? Tucked beneath the basket nearest the main public entrance, the Duke Pep Band provides the soundtrack to every game, keeping Cameron rocking from tip-off to the final buzzer."
+        },
+        {
+        position: [-4.007414928317842, 0.29549096027098487, -27.835736178124524],
+        title: "The Grad Student Section",
+        text: "Think all the fun is just for the undergrads? Think again. Duke's graduate students camp out for tickets too, earning seats right behind the basket on the Rubenstein Pavilion side of the court, where they lead Cameron's famous foul-shot hexes and keep the energy high all game long."
+      }
+      ];
+
+      const tourCard = document.getElementById("tourCard");
+      const tourStep = document.getElementById("tourStep");
+      const tourTitle = document.getElementById("tourTitle");
+      const tourText = document.getElementById("tourText");
+      const tourNext = document.getElementById("tour-next");
+      const tourEnd = document.getElementById("tour-end");
+
+      let tourIndex = -1;
+      let tourTarget = null;
+
+      const tourReturn = document.getElementById("tourReturn");
+
+      function goToStop(i) {
+        tourReturn.classList.add("hiddenCard");
+        tourIndex = i;
+        const stop = TOUR[i];
+        tourTarget = new THREE.Vector3().fromArray(stop.position);
+        tourStep.textContent = `Tour stop ${i + 1} of ${TOUR.length}`;
+        tourTitle.textContent = stop.title;
+        tourText.textContent = stop.text;
+        tourNext.textContent = i < TOUR.length - 1 ? "Next stop" : "Restart tour";
+        tourCard.classList.remove("hiddenCard");
+      }
+
+      let lastTourIndex = 0;
+
+      function endTour() {
+        lastTourIndex = tourIndex === -1 ? 0 : tourIndex;
+        tourIndex = -1;
+        tourTarget = null;
+        tourCard.classList.add("hiddenCard");
+        tourReturn.classList.remove("hiddenCard");
+      }
+
+      tourNext.addEventListener("click", () => {
+        goToStop(tourIndex < TOUR.length - 1 ? tourIndex + 1 : 0);
+      });
+
+      tourEnd.addEventListener("click", endTour);
+
+      document.getElementById("tour-restart").addEventListener("click", () => {
+        goToStop(tourIndex === -1 ? lastTourIndex : tourIndex);
+      });
+
+      enterButton.addEventListener("click", async () => {
+        loader.classList.add("hidden");
+        goToStop(0);
+
+        // The Enter click is a user gesture, so the browser lets us start
+        // audio here — no autoplay block.
+        try {
+          await listener.context.resume();
+          for (const audio of allAudio) {
+            if (!audio.isPlaying) audio.play();
+          }
+        } catch (error) {
+          console.warn("Audio could not start automatically:", error);
         }
       });
-    }
 
-    // Load meshes (GLB/GLTF)
-    const gltfLoader = new GLTFLoader();
-    for (const mesh of meshes) {
-      try {
-        const gltf = await gltfLoader.loadAsync(`${URL_BASE}/${mesh.filename}`);
-        const model = gltf.scene;
-        // Convert to MeshBasicMaterial to not need lighting
-        convertToBasicMaterials(model);
+      renderer.domElement.addEventListener("click", () => {
+        camera.getWorldPosition(cameraWorldPosition);
+        const positionArray = [cameraWorldPosition.x, cameraWorldPosition.y, cameraWorldPosition.z];
+        console.log("Camera position", {
+          x: cameraWorldPosition.x,
+          y: cameraWorldPosition.y,
+          z: cameraWorldPosition.z,
+        });
+        console.log(positionArray);
+      });
 
-        model.position.fromArray(mesh.transform?.translation ?? [0, 0, 0]);
-        model.quaternion.fromArray(mesh.transform?.quaternion ?? [0, 0, 0, 1]);
-        const meshScale = mesh.transform?.scale ?? [1, 1, 1];
-        model.scale.set(meshScale[0], meshScale[1], meshScale[2]);
-        scene.add(model);
-      } catch (error) {
-        console.warn(`Failed to load mesh: ${mesh.filename}`, error);
-      }
-    }
+      window.addEventListener("resize", () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
 
-    window.THREE = THREE;
-    window.scene = scene;
-    window.renderer = renderer;
+      renderer.setAnimationLoop(() => {
+        controls.update(localFrame, camera);
 
-    window.addEventListener("resize", onWindowResize, false);
-    function onWindowResize() {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    }
-
-    let renderEnabled = true;
-    let lastMoved = 0;
-    let lastPos = new THREE.Vector3().setScalar(Number.NEGATIVE_INFINITY);
-    let lastDir = new THREE.Vector3();
-
-    const controls = new SparkControls({
-      canvas: renderer.domElement,
-    });
-    controls.pointerControls.reverseRotate = utils.isMobile();
-    gui.add(controls.pointerControls, "reverseRotate").name("Reverse look").listen();
-    controls.pointerControls.rotateSpeed *= 2.0;
-    controls.pointerControls.slideSpeed *= 0.75;
-
-    const xr = new SparkXr({
-      renderer,
-      onMouseLeaveOpacity: 0.5,
-      onReady: async (supported) => {
-        console.log(`SparkXr initialized: XR ${supported ? "supported" : "not supported"}`);
-      },
-      onEnterXr: () => {
-        console.log("Enter XR");
-      },
-      onExitXr: () => {
-        console.log("Exit XR");
-      },
-      // enableHands: true,
-      controllers: {
-        // moveHeading: true,
-      },
-    });
-
-    // localFrame.add(xr.makeJointSplats(SparkXr.Hand.left));
-    // localFrame.add(xr.makeJointSplats(SparkXr.Hand.right));
-
-    let lastTime = 0;
-    let rotation = 0;
-    let xrTime = 0;
-
-    // gui.add({ disableRender: () => {
-    //   renderEnabled = false;
-    //   console.log("Render disabled");
-    // } }, "disableRender").name("Disable render");
-
-    gui.add(spark, "lodSplatScale", 0.001, 3.0, 0.001);
-
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "\\") {
-        const cameraPos = camera.getWorldPosition(new THREE.Vector3());
-        const cameraQuat = camera.getWorldQuaternion(new THREE.Quaternion());
-        console.log("camera position: ", JSON.stringify(cameraPos.toArray()), "quaternion: ", JSON.stringify(cameraQuat.toArray()));
-      }
-    });
-
-    renderer.setAnimationLoop(function animate(time, xrFrame) {
-      stats.begin();
-
-      const deltaTime = time - (lastTime || time);
-      lastTime = time;
-
-      xr.updateControllers(camera);
-      controls.update(localFrame, camera);
-
-      const now = performance.now();
-      const dir = localFrame.getWorldDirection(new THREE.Vector3());
-      if ((localFrame.position.distanceTo(lastPos) > 0.0001) || (dir.dot(lastDir) < 0.9999)) {
-        lastMoved = now;
-        if (!renderEnabled) {
-          console.log("Render enabled");
+        // Glide toward the active tour stop; hand control back on arrival.
+        if (tourTarget) {
+          localFrame.position.lerp(tourTarget, 0.035);
+          if (localFrame.position.distanceTo(tourTarget) < 0.08) {
+            tourTarget = null;
+          }
         }
-        renderEnabled = true;
-        lastPos.copy(localFrame.position);
-        lastDir.copy(dir);
-      }
-      if ((now - lastMoved) > RENDER_TIMEOUT_MS) {
-        if (renderEnabled) {
-          console.log("Render disabled");
-        }
-        renderEnabled = false;
-      }
 
-      if (renderEnabled) {
         renderer.render(scene, camera);
-      }
-
-      stats.end();
-    });
+      });
+    } catch (error) {
+      console.error(error);
+      showLoadError("The scene failed to load. Check the browser console for details, or try refreshing.");
+    }
   </script>
 </body>
 

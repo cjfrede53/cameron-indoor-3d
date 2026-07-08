@@ -1,2 +1,7 @@
-audio/
-media/
+# Large / unused assets not needed by the deployed Cameron Indoor scene
+audio/atmosphere.mp3
+audio/blastoff.mp3
+media/chill-zen-futuristic-environment.spz
+media/handdrawn.spz
+media/spaceshipglb.glb
+.DS_Store
